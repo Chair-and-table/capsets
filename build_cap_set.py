@@ -193,7 +193,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
 n= 4
 
 def main():
-    capset = get_rid_of_capset_method(4,2,verbose=True)
+    capset = get_rid_of_capset_method(4,5,verbose=True)
     print("Capset", capset)
     print(is_cap_set(nums_to_vecs(capset,n)))
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
