@@ -1,5 +1,7 @@
 import numpy as np
 from random import shuffle
+from is_cap_set import is_cap_set
+import heapq
 
 def num_to_vec(x : int, n: int) -> np.ndarray:
     vector = np.zeros(n,dtype=np.int8)
@@ -47,44 +49,13 @@ def ground_up(n : int,skip_values : set[int] = set(),max_size : int = None):
 
     return vectors[:vectors_length]
 
-def is_cap_set(vectors: np.ndarray) -> bool:
-  """Returns whether `vectors` form a valid cap set.
-
-  Checking the cap set property naively takes O(c^3 n) time, where c is the size
-  of the cap set. This function implements a faster check that runs in O(c^2 n).
-
-  Args:
-    vectors: [c, n] array containing c n-dimensional vectors over {0, 1, 2}.
-  """
-  _, n = vectors.shape
-
-  # Convert `vectors` elements into raveled indices (numbers in [0, 3^n) ).
-  powers = np.array([3 ** j for j in range(n - 1, -1, -1)], dtype=int)  # [n]
-  raveled = np.einsum('in,n->i', vectors, powers)  # [c]
-
-  # Starting from the empty set, we iterate through `vectors` one by one and at
-  # each step check that the vector can be inserted into the set without
-  # violating the defining property of cap set. To make this check fast we
-  # maintain a vector `is_blocked` indicating for each element of Z_3^n whether
-  # that element can be inserted into the growing set without violating the cap
-  # set property.
-  is_blocked = np.full(shape=3 ** n, fill_value=False, dtype=bool)
-  for i, (new_vector, new_index) in enumerate(zip(vectors, raveled)):
-    if is_blocked[new_index]:
-      return False  # Inserting the i-th element violated the cap set property.
-    if i >= 1:
-      # Update which elements are blocked after the insertion of `new_vector`.
-      blocking = np.einsum(
-          'nk,k->n',
-          (- vectors[:i, :] - new_vector[None, :]) % 3, powers)
-      is_blocked[blocking] = True
-    is_blocked[new_index] = True  # In case `vectors` contains duplicates.
-  return True  # All elements inserted without violating the cap set property.
-
 
 def felipe_algorythm(n,skip_values):
     """
-    for a field with q = 3 n = n, returns an array of which vectors have blocks when the vectors in skip_values are removed
+    For a field with q = 3 n = n, ignoring all vectors in skip_values where skip_values contains enumerated vectors,
+    returns an array of integers, where the index represents an enumerated point and the value represents how many lines go through
+    that point
+
     """
     blocking_count = np.full(shape = 3**n, fill_value=0,dtype=np.int16)
     vectors =  np.empty((3**n,n),dtype=np.int8)
@@ -114,6 +85,7 @@ def nums_to_vecs(nums,n):
 
 
 def get_rid_of_lines(n):
+    """not important"""
    
     initial_values = nums_to_vecs(list(range(20)),4)
     directions = [np.array([1,1,1,1]),np.array([1,2,3,1]),np.array([1,0,0,0])]
@@ -124,24 +96,112 @@ def get_rid_of_lines(n):
     print(sorted(skip_values),len(set(skip_values)))
     print(a := felipe_algorythm(n,skip_values=skip_values))
 
-def get_rid_of_capset(n):
-    a = ground_up(n,[],3)
-    skip_values = vecs_to_nums(a,n)
-    print(felipe_algorythm(4,skip_values))
-    b = ground_up(n,skip_values)
-    print(is_cap_set(a))
-    print(vecs_to_nums(b,n))
-    skip_values = np.concatenate((vecs_to_nums(a,n),vecs_to_nums(b,n))) 
+def find_next_togetridof(lines_count,amount, skip_values=[]):
+    """
+    Given:
+    lines_count - list of integers describing at each index i how many lines go through enumerated point i
+    amount - how many points are to be removed
+    skip_values - points which already have been removed
     
+    Returns:
+    An array of enumerated points. These points are the ones that have the most lines going through them,
+    and are not found in teh skip_values array. If the choice is ambiguous, it removes {amount} points such that
+    no three of those points lie a line
+    
+    """
+    next_values = np.empty(amount,dtype=int)
+    amount_we_have = 0
+
+    # a little bit of python magic
+    # easiest way to understand it is with an example:
+    # it will turn [10,11,20,31,0] into [(10,0),(11,1),(20,2),(31,3),(0,4)] and then sort it in reverse order
+    # based on the first value of each tuple. so it will become [(31,3),(20,2),(11,1),(10,0),(0,4)]
+    indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
+    i = 0
+    
+    if len(skip_values) % (3 ** (amount - 1)) == 0:
+        # the dimension of the object removed from the capset is equal to amount - 1.
+        # if we have already removed all points of the object from
+        # the capset then we must generate a new capset from what is remaining.
+        return vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
+    
+
+    while amount > amount_we_have:
+
+        if i == len(indexed_sorted_list):
+            return next_values[:amount_we_have]
+        
+        if indexed_sorted_list[i][1] not in skip_values:
+            next_values[amount_we_have] = indexed_sorted_list[i][1]
+            amount_we_have += 1
+        i += 1
+    return next_values
+
+def get_capset_from_line_count(lines_count, skip_values=[]):
+    """from line count gets capset, returns it in enumerated form"""
+    capset = []
+    for vec_num, lines_count in enumerate(lines_count):
+        if lines_count != 0:
+            continue
+        if vec_num in skip_values:
+            continue
+        capset.append(vec_num)
+    return capset
+
+def get_rid_of_capset_method(n,capset_size,verbose=False):
+    """Apply the method of getting rid of capsets from the set. In practice this is just removing {capset_size-1}-hyperplanes
+    from the set"""
+
+    len_skip_values = 0
+    itteration_number = 1
+    skip_values = np.empty(3**n,dtype=np.int64)
+    vectors_to_get_rid_of = vecs_to_nums(ground_up(n,[],capset_size),n)
+    logs = ""
+    logs += f"n = {n} capset_size = {capset_size} \n"
+    while len_skip_values < 59: #59 is almost completely arbitrary, i was just trying different numbers
+        
+        #updating the vectors that need to be removed from the set
+        #all vectors are enumerated.
+        skip_values[len_skip_values:len_skip_values + len(vectors_to_get_rid_of)] = vectors_to_get_rid_of
+        len_skip_values += len(vectors_to_get_rid_of)
+        
+
+        logs += f"Itteration number  {itteration_number}\n"
+        logs += f"Values that are skipped  {skip_values[:len_skip_values]}\n"
+
+        if itteration_number == 20:
+            print(len_skip_values)
+
+        # for each vector i, get the amount of lines going through it.
+        lines_count = felipe_algorythm(n,skip_values=skip_values[:len_skip_values])
+
+        logs += f"lines_count  {lines_count}\n"
+        logs += "\n"
+
+        itteration_number += 1
+
+        vectors_to_get_rid_of = find_next_togetridof(lines_count,capset_size,skip_values[:len_skip_values])
+
+    capset = get_capset_from_line_count(lines_count,skip_values)
+    logs += f"Final capset: \n {capset}"
+    if verbose:
+        with open("logs.txt","a") as f:
+            f.write(logs)
+            f.write("\n\n\n")
+    return capset
+
 n= 4
+
+def main():
+    capset = get_rid_of_capset_method(4,2,verbose=True)
+    print("Capset", capset)
+    print(is_cap_set(nums_to_vecs(capset,n)))
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
-skip_values = [24,74,17]
-print("skip_values", len(skip_values))
-a = felipe_algorythm(n,skip_values=skip_values)
-print(a)
-location = np.where(a == 38)[0]
-location.flags.writeable = False
+if __name__ == "__main__":
+    main()
+
+""" location.flags.writeable = False
 unique, counts = np.unique(a,return_counts=True)
 print(dict(zip(unique,counts)))
-print(set(location) - set(skip_values))
+print(set(location) - set(skip_values)) """

@@ -33,18 +33,3 @@ def is_cap_set(vectors: np.ndarray) -> bool:
       is_blocked[blocking] = True
     is_blocked[new_index] = True  # In case `vectors` contains duplicates.
   return True  # All elements inserted without violating the cap set property.
-
-n = 4
-c = 4
-vectors = np.empty((c,n),dtype=np.int16)
-for i in range(c):
-    j = i
-    vector = np.zeros(n,dtype=np.int16)
-
-    for y in range(n):
-      vector[y] = i%2
-      i //= 2
-    print(vector)
-    vectors[j] = vector
-
-print(is_cap_set(vectors))
