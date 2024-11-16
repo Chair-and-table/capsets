@@ -158,7 +158,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
     vectors_to_get_rid_of = vecs_to_nums(ground_up(n,[],capset_size),n)
     logs = ""
     logs += f"n = {n} capset_size = {capset_size} \n"
-    while len_skip_values < 59: #59 is almost completely arbitrary, i was just trying different numbers
+    while len_skip_values < 61: #61 is almost completely arbitrary, i was just trying different numbers
         
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
@@ -166,11 +166,9 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
         len_skip_values += len(vectors_to_get_rid_of)
         
 
-        logs += f"Itteration number  {itteration_number}\n"
-        logs += f"Values that are skipped  {skip_values[:len_skip_values]}\n"
-
-        if itteration_number == 20:
-            print(len_skip_values)
+        logs += f"Itteration number:  {itteration_number}\n"
+        logs += f"Values that are skipped:  {skip_values[:len_skip_values]}\n"
+        logs += f"Amount of skipped values: {len_skip_values}\n"
 
         # for each vector i, get the amount of lines going through it.
         lines_count = felipe_algorythm(n,skip_values=skip_values[:len_skip_values])
@@ -193,7 +191,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
 n= 4
 
 def main():
-    capset = get_rid_of_capset_method(4,5,verbose=True)
+    capset = get_rid_of_capset_method(4,2,verbose=True)
     print("Capset", capset)
     print(is_cap_set(nums_to_vecs(capset,n)))
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
