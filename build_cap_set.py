@@ -18,12 +18,15 @@ def vecs_to_nums(vec, n):
             (vec) % 3, powers)
     return num
 
-def ground_up(n : int,skip_values : set[int] = set(),max_size : int = None):
+
+
+def ground_up(n : int,start_values = [], skip_values : set[int] = set(),max_size : int = None):
     """
         Ground up finding of capsets algorythm. Does it randomly, expect different capsets every time. \n
         n : int - the dimension of the vectors \n
         skip_values : container that supports in keyword - the enumeration of vectors which are forbidden from being in the capset \n
         max_size : int - maximum size of cap set returned \n
+        start_values : int - this has to be a capset. the program will attempt to make the capset given larger \n
         returns numpy array of vectors in the capset.
     """
     if max_size is None:
@@ -33,6 +36,25 @@ def ground_up(n : int,skip_values : set[int] = set(),max_size : int = None):
     vectors_length = 0
     order = list(range(3**n))
     shuffle(order)
+
+
+    for value in start_values:
+        if is_blocked[value]:
+            raise Exception("What are you doing it says in the doc string start_values should be a capset")
+        
+        if value in skip_values:
+            raise Exception("Why did you put values that are in skip_values into start values?")
+
+
+        new_vec = num_to_vec(value,n)
+        if vectors_length >= 1:
+            blocking = vecs_to_nums(- vectors[:vectors_length, :] - new_vec[None, :],n)
+            is_blocked[blocking] = True
+
+        is_blocked[value] = True
+        vectors[vectors_length] = new_vec
+        vectors_length += 1
+
     for i in order:
         if is_blocked[i] or i in skip_values:
             continue
@@ -106,7 +128,7 @@ def find_next_togetridof(lines_count,amount, skip_values=[]):
     Returns:
     An array of enumerated points. These points are the ones that have the most lines going through them,
     and are not found in teh skip_values array. If the choice is ambiguous, it removes {amount} points such that
-    no three of those points lie a line
+    no three of those points lie on a line
     
     """
     next_values = np.empty(amount,dtype=int)
@@ -119,15 +141,15 @@ def find_next_togetridof(lines_count,amount, skip_values=[]):
     indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
     i = 0
     
-    if len(skip_values) % (3 ** (amount - 1)) == 0:
-        # the dimension of the object removed from the capset is equal to amount - 1.
-        # if we have already removed all points of the object from
-        # the capset then we must generate a new capset from what is remaining.
-        return vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
-    
 
     while amount > amount_we_have:
 
+        if (len(skip_values) + amount_we_have) % (3 ** (amount - 1)) == 0:
+            # the dimension of the object removed from the capset is equal to amount - 1.
+            # if we have already removed all points of the object from
+            # the capset then we must generate a new capset from what is remaining.
+            return vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount - amount_we_have),n)
+        
         if i == len(indexed_sorted_list):
             return next_values[:amount_we_have]
         
@@ -155,10 +177,10 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
     len_skip_values = 0
     itteration_number = 1
     skip_values = np.empty(3**n,dtype=np.int64)
-    vectors_to_get_rid_of = vecs_to_nums(ground_up(n,[],capset_size),n)
+    vectors_to_get_rid_of = vecs_to_nums(ground_up(n,skip_values=[],max_size=capset_size),n)
     logs = ""
     logs += f"n = {n} capset_size = {capset_size} \n"
-    while len_skip_values < 61: #61 is almost completely arbitrary, i was just trying different numbers
+    while len_skip_values < 6300: #61 is almost completely arbitrary, i was just trying different numbers
         
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
@@ -188,17 +210,37 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
             f.write("\n\n\n")
     return capset
 
-n= 4
+
+n= 8
+
+def run_a_bunch():
+
+    capset1max = get_rid_of_capset_method(4,3)
+    capset2max = ground_up(n,start_values=capset1max)
+    for _ in range(100):
+        capset1 = get_rid_of_capset_method(4,3)
+        capset2 = ground_up(n,start_values=capset1)
+        if len(capset2max) < len(capset2):
+            capset2max = capset2
+            capset1max = capset1
+    print(capset1max)
+    print(capset2max)
+    print(is_cap_set(capset2max),len(capset2max))
+
+def run_one():
+    capset = get_rid_of_capset_method(n,capset_size=10,verbose=True)
+    print("Begining capset: ",capset)
+    print("Capset length: ", len(capset))   
+    print(is_cap_set(nums_to_vecs(capset,n)))
 
 def main():
-    capset = get_rid_of_capset_method(4,2,verbose=True)
-    print("Capset", capset)
-    print(is_cap_set(nums_to_vecs(capset,n)))
+    print(run_one())
+    [13, 28, 32, 34, 72, 74, 78, 80]
+
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
 if __name__ == "__main__":
     main()
-
 """ location.flags.writeable = False
 unique, counts = np.unique(a,return_counts=True)
 print(dict(zip(unique,counts)))
