@@ -118,7 +118,7 @@ def get_rid_of_lines(n):
     print(sorted(skip_values),len(set(skip_values)))
     print(a := felipe_algorythm(n,skip_values=skip_values))
 
-def find_next_togetridof(lines_count,amount, skip_values=[]):
+def find_next_togetridof(n,lines_count,amount, skip_values=[]):
     """
     Given:
     lines_count - list of integers describing at each index i how many lines go through enumerated point i
@@ -126,38 +126,45 @@ def find_next_togetridof(lines_count,amount, skip_values=[]):
     skip_values - points which already have been removed
     
     Returns:
+
     An array of enumerated points. These points are the ones that have the most lines going through them,
     and are not found in teh skip_values array. If the choice is ambiguous, it removes {amount} points such that
     no three of those points lie on a line
     
     """
-    next_values = np.empty(amount,dtype=int)
     amount_we_have = 0
 
     # a little bit of python magic
     # easiest way to understand it is with an example:
     # it will turn [10,11,20,31,0] into [(10,0),(11,1),(20,2),(31,3),(0,4)] and then sort it in reverse order
     # based on the first value of each tuple. so it will become [(31,3),(20,2),(11,1),(10,0),(0,4)]
-    indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
-    i = 0
     
+    if len(skip_values) % (3 ** (amount - 1)) == 0:
+        # the dimension of the object removed from the capset is equal to amount - 1.
+        # if we have already removed all points of the object from
+        # the capset then we must generate a new capset from what is remaining.
+        potential =  vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
+        is_all_zero = True
+        while is_all_zero:
+            for value in potential:
+                
+                # This is to prevent an obscure bug. If you return a list of lenght amount of values and one of the values
+                # has a line count going through it that is less than or equal to amount -1 its possible for the removal of previous
+                # values to cause other values to suddenly have 0 lines going through them. This triggers the stop condition, resulting
+                # in early termination
+                if lines_count[value] <= amount - 1:
+                    return [value] 
 
-    while amount > amount_we_have:
-
-        if (len(skip_values) + amount_we_have) % (3 ** (amount - 1)) == 0:
-            # the dimension of the object removed from the capset is equal to amount - 1.
-            # if we have already removed all points of the object from
-            # the capset then we must generate a new capset from what is remaining.
-            return vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount - amount_we_have),n)
+                if lines_count[value] != 0:
+                    is_all_zero = False
+            potential = vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
+        return potential
         
-        if i == len(indexed_sorted_list):
-            return next_values[:amount_we_have]
-        
+    indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
+    for i in range(len(indexed_sorted_list)):
         if indexed_sorted_list[i][1] not in skip_values:
-            next_values[amount_we_have] = indexed_sorted_list[i][1]
-            amount_we_have += 1
-        i += 1
-    return next_values
+            return [indexed_sorted_list[i][1]]
+    return None
 
 def get_capset_from_line_count(lines_count, skip_values=[]):
     """from line count gets capset, returns it in enumerated form"""
@@ -180,30 +187,48 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
     vectors_to_get_rid_of = vecs_to_nums(ground_up(n,skip_values=[],max_size=capset_size),n)
     logs = ""
     logs += f"n = {n} capset_size = {capset_size} \n"
-    while len_skip_values < 6300: #61 is almost completely arbitrary, i was just trying different numbers
-        
+    set_size = 3**n
+    lines_count = []
+    while set_size - len_skip_values:
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
-        skip_values[len_skip_values:len_skip_values + len(vectors_to_get_rid_of)] = vectors_to_get_rid_of
-        len_skip_values += len(vectors_to_get_rid_of)
-        
+        for value in vectors_to_get_rid_of:
+            
+            # early stop if all that is left is capset
+            if len(lines_count) > 0 and  lines_count[value] == 0:
+                capset = get_capset_from_line_count(lines_count,skip_values)
+                logs += f"Final capset: \n {capset}"
+                if verbose:
+                    with open("logs.txt","a") as f:
+                        f.write(logs)
+                        f.write("\n\n\n")
+                if len(capset) <= 4:
+                    a = 1
+                print("vectors to get rid of:",vectors_to_get_rid_of)
+                return capset
+            
 
-        logs += f"Itteration number:  {itteration_number}\n"
-        logs += f"Values that are skipped:  {skip_values[:len_skip_values]}\n"
-        logs += f"Amount of skipped values: {len_skip_values}\n"
+            skip_values[len_skip_values] = value
+            len_skip_values += 1
 
-        # for each vector i, get the amount of lines going through it.
-        lines_count = felipe_algorythm(n,skip_values=skip_values[:len_skip_values])
 
-        logs += f"lines_count  {lines_count}\n"
-        logs += "\n"
+            if verbose:
+                logs += f"Itteration number:  {itteration_number}\n"
+                logs += f"Values that are skipped:  {skip_values[:len_skip_values]}\n"
+                logs += f"Amount of skipped values: {len_skip_values}\n"
 
-        itteration_number += 1
+            # for each vector i, get the amount of lines going through it.
+            lines_count = felipe_algorythm(n,skip_values=skip_values[:len_skip_values])
 
-        vectors_to_get_rid_of = find_next_togetridof(lines_count,capset_size,skip_values[:len_skip_values])
+            logs += f"lines_count  {lines_count}\n"
+            logs += "\n"
+
+            itteration_number += 1
+
+        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size,skip_values[:len_skip_values])
 
     capset = get_capset_from_line_count(lines_count,skip_values)
-    logs += f"Final capset: \n {capset}"
+    logs += f"Final capset: \n {capset} (no early termination)"
     if verbose:
         with open("logs.txt","a") as f:
             f.write(logs)
@@ -211,9 +236,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
     return capset
 
 
-n= 8
-
-def run_a_bunch():
+def run_a_bunch(n):
 
     capset1max = get_rid_of_capset_method(4,3)
     capset2max = ground_up(n,start_values=capset1max)
@@ -227,14 +250,14 @@ def run_a_bunch():
     print(capset2max)
     print(is_cap_set(capset2max),len(capset2max))
 
-def run_one():
-    capset = get_rid_of_capset_method(n,capset_size=10,verbose=True)
+def run_one(n):
+    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True)
     print("Begining capset: ",capset)
     print("Capset length: ", len(capset))   
     print(is_cap_set(nums_to_vecs(capset,n)))
 
 def main():
-    print(run_one())
+    print(run_one(4))
     [13, 28, 32, 34, 72, 74, 78, 80]
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
