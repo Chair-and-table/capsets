@@ -72,7 +72,7 @@ def ground_up(n : int,start_values = [], skip_values : set[int] = set(),max_size
     return vectors[:vectors_length]
 
 
-def felipe_algorythm(n,skip_values):
+def felipe_algorythm(n,skip_values: set):
     """
     For a field with q = 3 n = n, ignoring all vectors in skip_values where skip_values contains enumerated vectors,
     returns an array of integers, where the index represents an enumerated point and the value represents how many lines go through
@@ -132,7 +132,6 @@ def find_next_togetridof(n,lines_count,amount, skip_values=[]):
     no three of those points lie on a line
     
     """
-    amount_we_have = 0
 
     # a little bit of python magic
     # easiest way to understand it is with an example:
@@ -183,7 +182,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
 
     len_skip_values = 0
     itteration_number = 1
-    skip_values = np.empty(3**n,dtype=np.int64)
+    skip_values = set()
     vectors_to_get_rid_of = vecs_to_nums(ground_up(n,skip_values=[],max_size=capset_size),n)
     logs = ""
     logs += f"n = {n} capset_size = {capset_size} \n"
@@ -193,7 +192,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
         for value in vectors_to_get_rid_of:
-            
+
             # early stop if all that is left is capset
             if len(lines_count) > 0 and  lines_count[value] == 0:
                 capset = get_capset_from_line_count(lines_count,skip_values)
@@ -202,30 +201,27 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
                     with open("logs.txt","a") as f:
                         f.write(logs)
                         f.write("\n\n\n")
-                if len(capset) <= 4:
-                    a = 1
-                print("vectors to get rid of:",vectors_to_get_rid_of)
                 return capset
             
 
-            skip_values[len_skip_values] = value
+            skip_values.add(value)
             len_skip_values += 1
 
 
             if verbose:
                 logs += f"Itteration number:  {itteration_number}\n"
-                logs += f"Values that are skipped:  {skip_values[:len_skip_values]}\n"
+                logs += f"Values that are skipped:  {skip_values}\n"
                 logs += f"Amount of skipped values: {len_skip_values}\n"
 
             # for each vector i, get the amount of lines going through it.
-            lines_count = felipe_algorythm(n,skip_values=skip_values[:len_skip_values])
+            lines_count = felipe_algorythm(n,skip_values=skip_values)
 
             logs += f"lines_count  {lines_count}\n"
             logs += "\n"
 
             itteration_number += 1
 
-        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size,skip_values[:len_skip_values])
+        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size,skip_values)
 
     capset = get_capset_from_line_count(lines_count,skip_values)
     logs += f"Final capset: \n {capset} (no early termination)"
