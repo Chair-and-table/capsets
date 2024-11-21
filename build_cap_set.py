@@ -1,5 +1,5 @@
 import numpy as np
-from random import shuffle
+from random import shuffle, randint
 from is_cap_set import is_cap_set
 import heapq
 
@@ -15,7 +15,7 @@ def vecs_to_nums(vec, n):
     powers = np.array([3 ** j for j in range(n - 1, -1, -1)], dtype=int)  # [n]
     num = np.einsum(
             'nk,k->n',
-            (vec) % 3, powers)
+            (vec % 3), powers)
     return num
 
 
@@ -72,31 +72,23 @@ def ground_up(n : int,start_values = [], skip_values : set[int] = set(),max_size
     return vectors[:vectors_length]
 
 
-def felipe_algorythm(n,skip_values: set):
+def felipe_algorythm(n,skip_values: set, prev_line_count, point_removed_enum):
     """
     For a field with q = 3 n = n, ignoring all vectors in skip_values where skip_values contains enumerated vectors,
     returns an array of integers, where the index represents an enumerated point and the value represents how many lines go through
     that point
-
     """
-    blocking_count = np.full(shape = 3**n, fill_value=0,dtype=np.int16)
-    vectors =  np.empty((3**n,n),dtype=np.int8)
-    values_to_skip = skip_values
-    k = 0
+    point_removed = num_to_vec(point_removed_enum, n)
     for i in range(3**n):
         new_vec = num_to_vec(i,n)
-        if i in values_to_skip:
+        if i in skip_values:
            continue
-        if i >= 1:
-            powers = np.array([3 ** j for j in range(n - 1, -1, -1)], dtype=int)  # [n]
+        q = vecs_to_nums((- new_vec - point_removed)[None, : ],n)[0]
+        if q in skip_values:
+            continue
 
-            blocking = np.einsum(
-            'nk,k->n',
-            (- vectors[:k, :] - new_vec[None, :]) % 3, powers)
-            blocking_count[blocking] += 1
-        vectors[k] = new_vec
-        k += 1
-    return blocking_count
+        prev_line_count[i] -= 1
+    return prev_line_count
 
 
 def nums_to_vecs(nums,n):
@@ -118,7 +110,7 @@ def get_rid_of_lines(n):
     print(sorted(skip_values),len(set(skip_values)))
     print(a := felipe_algorythm(n,skip_values=skip_values))
 
-def find_next_togetridof(n,lines_count,amount, skip_values=[]):
+def find_next_togetridof(n,lines_count,amount, skip_values=set(),randomchance =0):
     """
     Given:
     lines_count - list of integers describing at each index i how many lines go through enumerated point i
@@ -151,14 +143,20 @@ def find_next_togetridof(n,lines_count,amount, skip_values=[]):
                 # has a line count going through it that is less than or equal to amount -1 its possible for the removal of previous
                 # values to cause other values to suddenly have 0 lines going through them. This triggers the stop condition, resulting
                 # in early termination
-                if lines_count[value] <= amount - 1:
+                if 0 < lines_count[value] <= amount - 1:
                     return [value] 
 
                 if lines_count[value] != 0:
                     is_all_zero = False
+              
             potential = vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
         return potential
-        
+    
+    if randint(1,100) <= randomchance:
+        potential =  randint(0,len(lines_count) - 1)
+        if potential not in skip_values:
+            return [potential]
+
     indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
     for i in range(len(indexed_sorted_list)):
         if indexed_sorted_list[i][1] not in skip_values:
@@ -176,7 +174,7 @@ def get_capset_from_line_count(lines_count, skip_values=[]):
         capset.append(vec_num)
     return capset
 
-def get_rid_of_capset_method(n,capset_size,verbose=False):
+def get_rid_of_capset_method(n,capset_size,verbose=False,randomchance=0):
     """Apply the method of getting rid of capsets from the set. In practice this is just removing {capset_size-1}-hyperplanes
     from the set"""
 
@@ -187,7 +185,7 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
     logs = ""
     logs += f"n = {n} capset_size = {capset_size} \n"
     set_size = 3**n
-    lines_count = []
+    lines_count = np.full(3 ** n, (3 ** n - 1)/2, dtype=int)
     while set_size - len_skip_values:
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
@@ -198,14 +196,12 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
                 capset = get_capset_from_line_count(lines_count,skip_values)
                 logs += f"Final capset: \n {capset}"
                 if verbose:
-                    with open("logs.txt","a") as f:
+                    with open("logs.txt","w") as f:
                         f.write(logs)
                         f.write("\n\n\n")
                 return capset
             
-
-            skip_values.add(value)
-            len_skip_values += 1
+            
 
 
             if verbose:
@@ -214,19 +210,18 @@ def get_rid_of_capset_method(n,capset_size,verbose=False):
                 logs += f"Amount of skipped values: {len_skip_values}\n"
 
             # for each vector i, get the amount of lines going through it.
-            lines_count = felipe_algorythm(n,skip_values=skip_values)
+            lines_count = felipe_algorythm(n,skip_values=skip_values,prev_line_count=lines_count, point_removed_enum=value)
+            skip_values.add(value)
+            len_skip_values += 1
 
             logs += f"lines_count  {lines_count}\n"
             logs += "\n"
-
-            itteration_number += 1
-
-        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size,skip_values)
+        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size,skip_values,randomchance=randomchance)
 
     capset = get_capset_from_line_count(lines_count,skip_values)
     logs += f"Final capset: \n {capset} (no early termination)"
     if verbose:
-        with open("logs.txt","a") as f:
+        with open("logs.txt","w") as f:
             f.write(logs)
             f.write("\n\n\n")
     return capset
@@ -247,13 +242,14 @@ def run_a_bunch(n):
     print(is_cap_set(capset2max),len(capset2max))
 
 def run_one(n):
-    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True)
+    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True,randomchance=0)
+    capset = ground_up(n, start_values=capset)
     print("Begining capset: ",capset)
     print("Capset length: ", len(capset))   
-    print(is_cap_set(nums_to_vecs(capset,n)))
 
 def main():
-    print(run_one(4))
+    for i in range(20):
+        print(run_one(4))
     [13, 28, 32, 34, 72, 74, 78, 80]
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
