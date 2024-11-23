@@ -154,7 +154,7 @@ def find_next_togetridof(n,lines_count,amount, skip_values=set(),randomchance =0
     
     if randint(1,100) <= randomchance:
         potential =  randint(0,len(lines_count) - 1)
-        if potential not in skip_values:
+        if potential not in skip_values and lines_count[potential] != 0:
             return [potential]
 
     indexed_sorted_list = sorted(list(zip(lines_count,range(0,len(lines_count)))),key=lambda x: x[0],reverse=True)
@@ -242,10 +242,9 @@ def run_a_bunch(n):
     print(is_cap_set(capset2max),len(capset2max))
 
 def run_one(n):
-    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True,randomchance=0)
-    capset = ground_up(n, start_values=capset)
+    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True,randomchance=70)
     print("Begining capset: ",capset)
-    print("Capset length: ", len(capset))   
+    print("Capset length: ", len(capset))
 
 def main():
     for i in range(20):
