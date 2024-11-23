@@ -135,8 +135,10 @@ def find_next_togetridof(n,lines_count,amount, skip_values=set(),randomchance =0
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
         potential =  vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
+        attempts = 0
         is_all_zero = True
         while is_all_zero:
+            attempts += 1
             for value in potential:
                 
                 # This is to prevent an obscure bug. If you return a list of lenght amount of values and one of the values
@@ -148,7 +150,18 @@ def find_next_togetridof(n,lines_count,amount, skip_values=set(),randomchance =0
 
                 if lines_count[value] != 0:
                     is_all_zero = False
-              
+
+            
+            if attempts == 10:
+                check = True
+                for i,line_count in enumerate(lines_count):
+                    if i not in skip_values and line_count != 0:
+                        check = False
+
+                if check:
+                    return [value]
+
+                    
             potential = vecs_to_nums(ground_up(n, skip_values=skip_values, max_size=amount),n)
         return potential
     
@@ -242,7 +255,7 @@ def run_a_bunch(n):
     print(is_cap_set(capset2max),len(capset2max))
 
 def run_one(n):
-    capset = get_rid_of_capset_method(n,capset_size=3,verbose=True,randomchance=70)
+    capset = get_rid_of_capset_method(n,capset_size=3,verbose=False,randomchance=100)
     print("Begining capset: ",capset)
     print("Capset length: ", len(capset))
 
