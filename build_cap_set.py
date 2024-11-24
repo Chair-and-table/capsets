@@ -1,7 +1,8 @@
 import numpy as np
 from random import shuffle, randint
 from is_cap_set import is_cap_set
-import heapq
+from multiprocessing import Pool
+
 
 def num_to_vec(x : int, n: int) -> np.ndarray:
     vector = np.zeros(n,dtype=np.int8)
@@ -151,7 +152,8 @@ def find_next_togetridof(n,lines_count,amount, skip_values=set(),randomchance =0
                 if lines_count[value] != 0:
                     is_all_zero = False
 
-            
+            # this is to prevent infinte loops. If all points left have 0 lines going through them, there is an infinite loop
+            # This is pretty rare though, so I don't always need to check for it.
             if attempts == 10:
                 check = True
                 for i,line_count in enumerate(lines_count):
@@ -214,7 +216,6 @@ def get_rid_of_capset_method(n,capset_size,verbose=False,randomchance=0):
                         f.write("\n\n\n")
                 return capset
             
-            
 
 
             if verbose:
@@ -254,15 +255,39 @@ def run_a_bunch(n):
     print(capset2max)
     print(is_cap_set(capset2max),len(capset2max))
 
-def run_one(n):
-    capset = get_rid_of_capset_method(n,capset_size=3,verbose=False,randomchance=100)
-    print("Begining capset: ",capset)
-    print("Capset length: ", len(capset))
+def run(params : list):
+    """
+    params: n, sample_number, filename, random_chance, capset_size
+    """
+    n,sample_number, file,random_chance,capset_size = params
+    with open(file, "w") as f:
+        f.write(f"n: {n} capset_size: {capset_size} random_chance: {random_chance}\n")
+    capsets = []
+    for i in range(sample_number):
+        with open(file, "a") as f:
+            capset = get_rid_of_capset_method(n,capset_size=capset_size,verbose=False,randomchance=random_chance)
+            f.write(f"Begining capset: {capset}\n")
+            f.write(f"Capset length:  {len(capset)}\n")
+            capset2 = ground_up(n, start_values=capset)
+            f.write(str(capset2))
+            f.write("\n")
+            f.write(f"Len of capset  {len(capset2)}\n")
+            capsets.append(str(len(capset2)))
+    with open(file, "a") as f:
+        f.write("	".join(capsets))
+        f.write("\n")
+
 
 def main():
-    for i in range(20):
-        print(run_one(4))
-    [13, 28, 32, 34, 72, 74, 78, 80]
+    params = []
+    n = 8
+    capset_size = 3
+    sample_size = 10
+
+    for i in range(11):
+        params.append([n,sample_size, f"logs{i}.txt", i * 10,   capset_size])
+    with Pool() as pool:
+        list(pool.imap_unordered(run, params))
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
