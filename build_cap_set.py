@@ -18,12 +18,14 @@ def ground_up(n : int,start_values = [], skip_values : list[int] = [],max_size :
     """
     if max_size is None:
         max_size == 3 ** n
+    
     is_blocked = np.full(shape=3 ** n, fill_value=False, dtype=bool)
     vectors = np.empty((3**n,n),dtype=np.int8)
     vectors_length = 0
     order = list(range(3**n))
     shuffle(order)
 
+    # don't judge the double for loop i'm lazy ok
 
     for value in start_values:
         if is_blocked[value]:
@@ -86,7 +88,9 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     amount - how many points are to be removed
     skip_vectors - points which already have been removed
     Returns:
-    An array of enumerated points. These points are the ones that have the most lines going through them,
+    A tuple. 
+    First value is an array of enumerated points, second is their an array of their correspoding vector.
+    These points are the ones that have the most lines going through them,
     and are not found in the skip_vectors array. If the choice is ambiguous, it removes {amount} points such that
     no three of those points lie on a line
     
@@ -97,16 +101,17 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
         # the dimension of the object removed from the capset is equal to amount - 1.
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
-        potential_vectors =  vecs_to_nums(ground_up(n, skip_values=lines_count, max_size=amount),n)
         attempts = 0
         there_exists_zero = True
 
         # this bit of the code is a bit iffy
         # definetly room for improvement here
         while there_exists_zero:
+            potential_vectors =  ground_up(n, skip_values=lines_count, max_size=amount)
+            potential_values = vecs_to_nums(potential_vectors,n)
             there_exists_zero = False
             attempts += 1
-            for vector_enum in potential_vectors:
+            for vector_enum,vector in zip(potential_values,potential_vectors):
                 
                 # This is to prevent an obscure bug. If you return a list of lenght amount of values and one of the values
                 # has a line count going through it that is less than or equal to amount -1 its possible for the removal of previous
@@ -114,13 +119,13 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
                 # in early termination
                 if 0 < lines_count[vector_enum] <= amount - 1:
                     debugglobal = "returned from double inequality"
-                    return [vector_enum] 
+                    return ([vector_enum],[vector]) 
                 
 
                 if lines_count[vector_enum] == 0:
                     there_exists_zero = True
 
-            # this is to prevent infinte loops. If you couldn't find a capset where all the points have lines going through them after 15 attempts, it probably doesn't exist
+            # this is to prevent infinte loops. happens rarely.
             if attempts == 10:
                 count = 0
                 for line_count in lines_count:
@@ -128,21 +133,23 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
                         count += 1
                     if count < amount:
                         debugglobal = "returned from the attempts check"
-                        return [np.argmax(lines_count)]
+                        vector_enum = np.argmax(lines_count)
+                        return ([vector_enum], [num_to_vec(vector_enum,n)])
 
-            potential_vectors = vecs_to_nums(ground_up(n, skip_values=lines_count, max_size=amount),n)
-        
         debugglobal = "returned from after the while loop"
-        return potential_vectors
+        return (potential_values,potential_vectors)
     
     if randint(1,100) <= randomchance:
-        potential_vector =  randint(0,len(lines_count) - 1)
-        if lines_count[potential_vector] > 0:
+        potential_vector_enum =  randint(0,len(lines_count) - 1)
+
+        if lines_count[potential_vector_enum] > 0:
             debugglobal = "returned from random chance"
-            return [potential_vector]
+            return ([potential_vector_enum], [num_to_vec(potential_vector_enum,n)])
+        
     # return index of maximum value
     debugglobal = "returned from the very end"
-    return [np.argmax(lines_count)]
+    vector_enum = np.argmax(lines_count)
+    return ([vector_enum], [num_to_vec(vector_enum,n)])
 
 
 
@@ -168,38 +175,41 @@ def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> 
 
     set_size = 3**n
     skip_vectors = np.empty((set_size,n), dtype=int)
+    skip_values = np.empty(set_size,dtype=int)
     skip_vectors_len = 0
  
     lines_count = np.full(set_size, (set_size - 1)/2, dtype=int)
 
     # lines_count[i] is greater than or equal to 0 if vector i is in our subset, and less than 0 if it's been removed
-    vectors_to_get_rid_of = vecs_to_nums(ground_up(n,skip_values=lines_count, max_size=capset_size),n)
-
+    vectors_to_get_rid_of = ground_up(n,skip_values=lines_count, max_size=capset_size)
+    vectors_enum_to_get_rid_of = vecs_to_nums(vectors_to_get_rid_of,n)
 
     while set_size - skip_vectors_len:
         #updating the vectors that need to be removed from the set
         #all vectors are enumerated.
-        for vector_enum in vectors_to_get_rid_of:
+        for vector_enum,vector in zip(vectors_enum_to_get_rid_of,vectors_to_get_rid_of):
 
             # If the best vector to get rid of has 0 lines going through, all others must also have 0 lines going through them
             # i.e. capset.
             if lines_count[vector_enum] == 0:
-                if set_size - skip_vectors_len <= 12:
-                    print(debugglobal)
+
+                # @!$#%& bug has haunted this algorythm since the begining.    
                 capset = get_capset_from_line_count(lines_count)
+                if len(capset) <= 12:
+                    print(debugglobal, set_size- skip_vectors_len)
+                    print(vector_enum, vectors_enum_to_get_rid_of)
                 return capset
-            
             # updating points removed
-            skip_vectors[skip_vectors_len] = num_to_vec(vector_enum,n)
+            skip_vectors[skip_vectors_len] = vector
+            skip_values[skip_vectors_len] = vector_enum
             skip_vectors_len += 1
 
             # for each vector i, get the amount of lines going through it with the point being removed
             lines_count = felipe_algorythm(n,skip_vectors=skip_vectors,skip_vectors_len=skip_vectors_len, prev_line_count=lines_count, point_removed_enum=vector_enum)
             
             
-        # finds the next best vector to get rid of
-        vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size, skip_vectors_len,randomchance=randomchance)
-    
+        # finds the next best vector(s) to get rid of
+        vectors_enum_to_get_rid_of,vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size, skip_vectors_len,randomchance=randomchance)
     # at this point, we should have no points left to remove. All that is left to do is use the lines_count to figure out what vectors
     # are in our capset.
     capset = get_capset_from_line_count(lines_count)
@@ -249,11 +259,11 @@ def run(params : list):
 def main():
     params = []
     n = 8
-    capset_size = 3
-    sample_size = 20
+    capset_size = 2
+    sample_size = 15
 
     for i in range(11):
-        params.append([n,sample_size, f"logs{i}.txt", i * 10,   capset_size])
+        params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
 
     with Pool() as pool:
         list(pool.imap_unordered(run, params))
