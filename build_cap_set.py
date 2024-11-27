@@ -121,7 +121,7 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
 
             # this is to prevent infinte loops. If all points left have 0 lines going through them, there is an infinite loop
             # This is pretty rare though, so I don't always need to check for it.
-            if attempts == 10 and max(lines_count) <= 0:
+            if attempts == 1 and max(lines_count) <= 0:
                 return [vector_enum]
 
             potential_vectors = vecs_to_nums(ground_up(n, skip_values=lines_count, max_size=amount),n)
@@ -136,24 +136,6 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     return [np.argmax(lines_count)]
 
 
-def felipe_algorythm2(n,skip_values: set, prev_line_count, point_removed_enum):
-    """
-    For a field with q = 3 n = n, ignoring all vectors in skip_values where skip_values contains enumerated vectors,
-    returns an array of integers, where the index represents an enumerated point and the value represents how many lines go through
-    that point
-    """
-    point_removed = num_to_vec(point_removed_enum, n)
-    for i in range(3**n):
-        new_vec = num_to_vec(i,n)
-        if i in skip_values:
-           continue
-        q = vecs_to_nums((- new_vec - point_removed)[None, : ],n)[0]
-        if q in skip_values:
-            prev_line_count[q] -= 1
-            continue
-
-        prev_line_count[i] -= 1
-    return prev_line_count
 
 
 def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> np.ndarray[np.ndarray[int]]:
@@ -257,30 +239,15 @@ def main():
     params = []
     n = 8
     capset_size = 3
-    sample_size = 1
+    sample_size = 20
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i * 10,   capset_size])
 
-    run(params[0])
-"""     skip_vectors = np.array([np.array([0,2,0]),np.array([1,1,1]),np.array([2,2,2])])
-    skip_values = vecs_to_nums(skip_vectors,n)
-    vector_to_get_rid_of = 0
-    line_count = np.full(3**n, (3**n - 1)/2,dtype=int)
-    line_count2 = np.full(3**n, (3**n -1 )/2, dtype=int)
-    for (i, value) in enumerate(skip_values):
-        line_count2 = felipe_algorythm(n, skip_vectors,i+1, line_count2, value)
-    for i,value in enumerate(skip_values):
-        line_count = felipe_algorythm2(n, skip_values[:i+1], line_count, value)
-    
-    line_count2 = felipe_algorythm(n, skip_vectors, len(skip_vectors),line_count2,0)
-    line_count = felipe_algorythm2(n, skip_values, line_count, 0)
-    print(line_count2)
-    print(line_count) """
-    #felipe_algorythm(n,)
 
-"""     with Pool() as pool:
-        list(pool.imap_unordered(run, params)) """
+
+    with Pool() as pool:
+        list(pool.imap_unordered(run, params))
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
