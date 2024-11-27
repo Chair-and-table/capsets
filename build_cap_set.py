@@ -3,7 +3,7 @@ from random import shuffle, randint
 from is_cap_set import is_cap_set
 from multiprocessing import Pool
 from tools import *
-
+import os
 
 debugglobal = ""
 
@@ -259,14 +259,27 @@ def run(params : list):
 def main():
     params = []
     n = 8
-    capset_size = 2
+    capset_size = 8
     sample_size = 15
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
 
     with Pool() as pool:
-        list(pool.imap_unordered(run, params))
+        list(pool.imap(run, params))
+
+    with open("logs.txt", "w") as f:
+        f.write("")
+        
+    with open("logs.txt", "a") as f:
+        for i in range(11):
+            with open(f"logs{i}.txt", 'rb') as ph:
+                ph.seek(-2, os.SEEK_END)
+                while ph.read(1) != b'\n':
+                    ph.seek(-2, os.SEEK_CUR)
+                last_line = ph.readline().decode()
+                f.write(last_line[:-1])
+
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
