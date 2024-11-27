@@ -5,6 +5,8 @@ from multiprocessing import Pool
 from tools import *
 
 
+debugglobal = ""
+
 def ground_up(n : int,start_values = [], skip_values : list[int] = [],max_size : int = None):
     """
         Ground up finding of capsets algorythm. Does it randomly, expect different capsets every time. \n
@@ -89,23 +91,20 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     no three of those points lie on a line
     
     """
+    global debugglobal
 
-    # a little bit of python magic
-    # easiest way to understand it is with an example:
-    # it will turn [10,11,20,31,0] into [(10,0),(11,1),(20,2),(31,3),(0,4)] and then sort it in reverse order
-    # based on the first value of each tuple. so it will become [(31,3),(20,2),(11,1),(10,0),(0,4)]
-    
     if skip_vectors_len % (3 ** (amount - 1)) == 0:
         # the dimension of the object removed from the capset is equal to amount - 1.
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
         potential_vectors =  vecs_to_nums(ground_up(n, skip_values=lines_count, max_size=amount),n)
         attempts = 0
-        is_all_zero = True
+        there_exists_zero = True
 
         # this bit of the code is a bit iffy
         # definetly room for improvement here
-        while is_all_zero:
+        while there_exists_zero:
+            there_exists_zero = False
             attempts += 1
             for vector_enum in potential_vectors:
                 
@@ -114,25 +113,35 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
                 # values to cause other values to suddenly have 0 lines going through them. This triggers the stop condition, resulting
                 # in early termination
                 if 0 < lines_count[vector_enum] <= amount - 1:
+                    debugglobal = "returned from double inequality"
                     return [vector_enum] 
+                
 
-                if lines_count[vector_enum] != 0:
-                    is_all_zero = False
+                if lines_count[vector_enum] == 0:
+                    there_exists_zero = True
 
-            # this is to prevent infinte loops. If all points left have 0 lines going through them, there is an infinite loop
-            # This is pretty rare though, so I don't always need to check for it.
-            if attempts == 1 and max(lines_count) <= 0:
-                return [vector_enum]
+            # this is to prevent infinte loops. If you couldn't find a capset where all the points have lines going through them after 15 attempts, it probably doesn't exist
+            if attempts == 10:
+                count = 0
+                for line_count in lines_count:
+                    if line_count > 0:
+                        count += 1
+                    if count < amount:
+                        debugglobal = "returned from the attempts check"
+                        return [np.argmax(lines_count)]
 
             potential_vectors = vecs_to_nums(ground_up(n, skip_values=lines_count, max_size=amount),n)
         
+        debugglobal = "returned from after the while loop"
         return potential_vectors
     
     if randint(1,100) <= randomchance:
         potential_vector =  randint(0,len(lines_count) - 1)
         if lines_count[potential_vector] > 0:
+            debugglobal = "returned from random chance"
             return [potential_vector]
     # return index of maximum value
+    debugglobal = "returned from the very end"
     return [np.argmax(lines_count)]
 
 
@@ -175,6 +184,8 @@ def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> 
             # If the best vector to get rid of has 0 lines going through, all others must also have 0 lines going through them
             # i.e. capset.
             if lines_count[vector_enum] == 0:
+                if set_size - skip_vectors_len <= 12:
+                    print(debugglobal)
                 capset = get_capset_from_line_count(lines_count)
                 return capset
             
@@ -243,8 +254,6 @@ def main():
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i * 10,   capset_size])
-
-
 
     with Pool() as pool:
         list(pool.imap_unordered(run, params))
