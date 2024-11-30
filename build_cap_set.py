@@ -3,11 +3,12 @@ from random import shuffle, randint
 from is_cap_set import is_cap_set
 from multiprocessing import Pool
 from tools import *
+from itertools import chain
 import os
 
 debugglobal = ""
 
-def ground_up(n : int,start_values = [], skip_values : list[int] = [],max_size : int = None):
+def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size : int = None, condition = lambda line_counts,i, amount : True):
     """
         Ground up finding of capsets algorythm. Does it randomly, expect different capsets every time. \n
         n : int - the dimension of the vectors \n
@@ -25,32 +26,19 @@ def ground_up(n : int,start_values = [], skip_values : list[int] = [],max_size :
     order = list(range(3**n))
     shuffle(order)
 
-    # don't judge the double for loop i'm lazy ok
 
-    for value in start_values:
-        if is_blocked[value]:
-            raise Exception("What are you doing it says in the doc string start_values should be a capset")
-        
-        if skip_values and skip_values[value] < 0:
-            raise Exception("Why did you put values that are in skip_values into start values?")
-
-
-        new_vec = num_to_vec(value,n)
-        if vectors_length >= 1:
-            blocking = vecs_to_nums(- vectors[:vectors_length, :] - new_vec[None, :],n)
-            is_blocked[blocking] = True
-
-        is_blocked[value] = True
-        vectors[vectors_length] = new_vec
-        vectors_length += 1
-
-    for i in order:
-        if is_blocked[i] or (len(skip_values) > 0 and skip_values[i] < 0):
+    for i in chain(start_values,order):
+        if is_blocked[i]: 
             continue
+
+        if (len(line_counts) > 0 and (line_counts[i] < 0 or condition(line_counts,i,max_size))):
+            continue
+
         new_vec = num_to_vec(i,n)
         if vectors_length >= 1:
             blocking = vecs_to_nums(- vectors[:vectors_length, :] - new_vec[None, :],n)
             is_blocked[blocking] = True
+            
         is_blocked[i] = True
         vectors[vectors_length] = new_vec
         vectors_length += 1
@@ -101,43 +89,15 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
         # the dimension of the object removed from the capset is equal to amount - 1.
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
-        attempts = 0
-        there_exists_zero = True
-
         # this bit of the code is a bit iffy
         # definetly room for improvement here
-        while there_exists_zero:
-            potential_vectors =  ground_up(n, skip_values=lines_count, max_size=amount)
-            potential_values = vecs_to_nums(potential_vectors,n)
-            there_exists_zero = False
-            attempts += 1
-            for vector_enum,vector in zip(potential_values,potential_vectors):
-                
-                # This is to prevent an obscure bug. If you return a list of lenght amount of values and one of the values
-                # has a line count going through it that is less than or equal to amount -1 its possible for the removal of previous
-                # values to cause other values to suddenly have 0 lines going through them. This triggers the stop condition, resulting
-                # in early termination
-                if 0 < lines_count[vector_enum] <= amount - 1:
-                    debugglobal = "returned from double inequality"
-                    return ([vector_enum],[vector]) 
-                
+        potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition= lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1)
+        potential_values = vecs_to_nums(potential_vectors,n)
 
-                if lines_count[vector_enum] == 0:
-                    there_exists_zero = True
-
-            # this is to prevent infinte loops. happens rarely.
-            if attempts == 10:
-                count = 0
-                for line_count in lines_count:
-                    if line_count > 0:
-                        count += 1
-                    if count < amount:
-                        debugglobal = "returned from the attempts check"
-                        vector_enum = np.argmax(lines_count)
-                        return ([vector_enum], [num_to_vec(vector_enum,n)])
-
-        debugglobal = "returned from after the while loop"
-        return (potential_values,potential_vectors)
+        if len(potential_vectors) == amount:
+            return (potential_values,potential_vectors)
+        elif 0 < len(potential_vectors):
+            return ([potential_vectors[0]], [num_to_vec(potential_vectors[0],n)])
     
     if randint(1,100) <= randomchance:
         potential_vector_enum =  randint(0,len(lines_count) - 1)
@@ -181,7 +141,7 @@ def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> 
     lines_count = np.full(set_size, (set_size - 1)/2, dtype=int)
 
     # lines_count[i] is greater than or equal to 0 if vector i is in our subset, and less than 0 if it's been removed
-    vectors_to_get_rid_of = ground_up(n,skip_values=lines_count, max_size=capset_size)
+    vectors_to_get_rid_of = ground_up(n,line_counts=lines_count, max_size=capset_size)
     vectors_enum_to_get_rid_of = vecs_to_nums(vectors_to_get_rid_of,n)
 
     while set_size - skip_vectors_len:
@@ -259,16 +219,16 @@ def run(params : list):
 def main():
     params = []
     n = 8
-    capset_size = 8
-    sample_size = 15
+    capset_size = 3
+    sample_size = 10
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
+    run(params[0])
+"""     with Pool() as pool:
+        list(pool.imap(run, params)) """
 
-    with Pool() as pool:
-        list(pool.imap(run, params))
-
-    with open("logs.txt", "w") as f:
+"""     with open("logs.txt", "w") as f:
         f.write("")
         
     with open("logs.txt", "a") as f:
@@ -278,7 +238,7 @@ def main():
                 while ph.read(1) != b'\n':
                     ph.seek(-2, os.SEEK_CUR)
                 last_line = ph.readline().decode()
-                f.write(last_line[:-1])
+                f.write(last_line[:-1]) """
 
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
