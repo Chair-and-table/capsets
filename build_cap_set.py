@@ -6,9 +6,8 @@ from tools import *
 from itertools import chain
 import os
 
-debugglobal = ""
 
-def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size : int = None, condition = lambda line_counts,i, amount : True):
+def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size : int = None, condition = lambda line_counts,i, amount : False):
     """
         Ground up finding of capsets algorythm. Does it randomly, expect different capsets every time. \n
         n : int - the dimension of the vectors \n
@@ -16,7 +15,7 @@ def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size :
         max_size : int - maximum size of cap set returned \n
         start_values : int - this has to be a capset. the program will attempt to make the capset given larger \n
         condition : function that takes in line_counts, index, and the amount, and returns a true or false value. the capset will be generated such that the line counts 
-        of all points in the capset satisfy that condition.
+        of all points in the capset DO NOT satisfy that condition.
         returns numpy array of vectors in the capset.
     """
     if max_size is None:
@@ -85,13 +84,13 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     no three of those points lie on a line
     
     """
-    global debugglobal
     CAPSET_SIZE = 3**n
     if np.count_nonzero(lines_count == np.max(lines_count)) == (CAPSET_SIZE - skip_vectors_len):
         # the dimension of the object removed from the capset is equal to amount - 1.
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
-        potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition= lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1)
+        condition = lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1
+        potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition=condition)
         potential_values = vecs_to_nums(potential_vectors,n)
 
         if len(potential_vectors) == amount:
@@ -103,11 +102,9 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
         potential_vector_enum =  randint(0,len(lines_count) - 1)
 
         if lines_count[potential_vector_enum] > 0:
-            debugglobal = "returned from random chance"
             return ([potential_vector_enum], [num_to_vec(potential_vector_enum,n)])
         
     # return index of maximum value
-    debugglobal = "returned from the very end"
     vector_enum = np.argmax(lines_count)
     return ([vector_enum], [num_to_vec(vector_enum,n)])
 
@@ -146,18 +143,12 @@ def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> 
 
     while set_size - skip_vectors_len:
         #updating the vectors that need to be removed from the set
-        #all vectors are enumerated.
         for vector_enum,vector in zip(vectors_enum_to_get_rid_of,vectors_to_get_rid_of):
 
             # If the best vector to get rid of has 0 lines going through, all others must also have 0 lines going through them
             # i.e. capset.
             if lines_count[vector_enum] == 0:
-
-                # @!$#%& bug has haunted this algorythm since the begining.    
                 capset = get_capset_from_line_count(lines_count)
-                if len(capset) <= 12:
-                    print(debugglobal, set_size- skip_vectors_len)
-                    print(vector_enum, vectors_enum_to_get_rid_of)
                 return capset
             # updating points removed
             skip_vectors[skip_vectors_len] = vector
