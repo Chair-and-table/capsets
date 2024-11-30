@@ -15,6 +15,8 @@ def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size :
         skip_values : is ACTUALLY the line count, if the line count is negative we know the value is skipped \n
         max_size : int - maximum size of cap set returned \n
         start_values : int - this has to be a capset. the program will attempt to make the capset given larger \n
+        condition : function that takes in line_counts, index, and the amount, and returns a true or false value. the capset will be generated such that the line counts 
+        of all points in the capset satisfy that condition.
         returns numpy array of vectors in the capset.
     """
     if max_size is None:
@@ -84,13 +86,11 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     
     """
     global debugglobal
-
-    if skip_vectors_len % (3 ** (amount - 1)) == 0:
+    CAPSET_SIZE = 3**n
+    if np.count_nonzero(lines_count == np.max(lines_count)) == (CAPSET_SIZE - skip_vectors_len):
         # the dimension of the object removed from the capset is equal to amount - 1.
         # if we have already removed all points of the object from
         # the capset then we must generate a new capset from what is remaining.
-        # this bit of the code is a bit iffy
-        # definetly room for improvement here
         potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition= lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1)
         potential_values = vecs_to_nums(potential_vectors,n)
 
@@ -224,11 +224,11 @@ def main():
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
-    run(params[0])
-"""     with Pool() as pool:
-        list(pool.imap(run, params)) """
 
-"""     with open("logs.txt", "w") as f:
+    with Pool() as pool:
+        list(pool.imap(run, params))
+
+    with open("logs.txt", "w") as f:
         f.write("")
         
     with open("logs.txt", "a") as f:
@@ -238,7 +238,7 @@ def main():
                 while ph.read(1) != b'\n':
                     ph.seek(-2, os.SEEK_CUR)
                 last_line = ph.readline().decode()
-                f.write(last_line[:-1]) """
+                f.write(last_line[:-1])
 
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
