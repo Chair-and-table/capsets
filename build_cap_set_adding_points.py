@@ -213,8 +213,8 @@ def run(params : list):
 def main():
     params = []
     n = 8
-    capset_size = 3
-    sample_size = 10
+    capset_size = 10
+    sample_size = 15
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
