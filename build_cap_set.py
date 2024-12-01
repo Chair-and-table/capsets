@@ -69,6 +69,7 @@ def felipe_algorythm(n : int,skip_vectors: np.ndarray[np.ndarray[int]],skip_vect
 
     
 
+
 def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_len : int,randomchance =0):
     """
     Given:
@@ -86,10 +87,9 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     """
     CAPSET_SIZE = 3**n
     if np.count_nonzero(lines_count == np.max(lines_count)) == (CAPSET_SIZE - skip_vectors_len):
-        # the dimension of the object removed from the capset is equal to amount - 1.
-        # if we have already removed all points of the object from
-        # the capset then we must generate a new capset from what is remaining.
+        # if all the points left have the same line count
         condition = lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1
+        # this condition WILL NOT be satified by any of the points in the capset ^  
         potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition=condition)
         potential_values = vecs_to_nums(potential_vectors,n)
 
@@ -155,10 +155,8 @@ def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> 
             skip_values[skip_vectors_len] = vector_enum
             skip_vectors_len += 1
 
-            # for each vector i, get the amount of lines going through it with the point being removed
+            # for each vector i, get the amount of lines going through it with the point being removeds
             lines_count = felipe_algorythm(n,skip_vectors=skip_vectors,skip_vectors_len=skip_vectors_len, prev_line_count=lines_count, point_removed_enum=vector_enum)
-            
-            
         # finds the next best vector(s) to get rid of
         vectors_enum_to_get_rid_of,vectors_to_get_rid_of = find_next_togetridof(n,lines_count,capset_size, skip_vectors_len,randomchance=randomchance)
     # at this point, we should have no points left to remove. All that is left to do is use the lines_count to figure out what vectors
@@ -209,9 +207,9 @@ def run(params : list):
 
 def main():
     params = []
-    n = 8
+    n = 4
     capset_size = 3
-    sample_size = 10
+    sample_size = 1
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
@@ -230,7 +228,6 @@ def main():
                     ph.seek(-2, os.SEEK_CUR)
                 last_line = ph.readline().decode()
                 f.write(last_line[:-1])
-
 
 #print(is_cap_set(nums_to_vecs(skip_values,n)))
 #skip_values=[24,74,17,32,49,7,64,54,39]
