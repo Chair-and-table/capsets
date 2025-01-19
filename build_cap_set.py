@@ -7,7 +7,7 @@ from itertools import chain
 import os
 
 
-def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size : int = None, condition = lambda line_counts,i, amount : False):
+def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size : int = None, condition = lambda line_counts,i, amount,not_allowed : False,not_allowed=set()):
     """
         Ground up finding of capsets algorythm. Does it randomly, expect different capsets every time. \n
         n : int - the dimension of the vectors \n
@@ -32,7 +32,7 @@ def ground_up(n : int,start_values = [], line_counts : list[int] = [],max_size :
         if is_blocked[i]: 
             continue
 
-        if (len(line_counts) > 0 and (line_counts[i] < 0 or condition(line_counts,i,max_size))):
+        if (len(line_counts) > 0 and (line_counts[i] < 0 or condition(line_counts,i,max_size,not_allowed))):
             continue
 
         new_vec = num_to_vec(i,n)
@@ -88,7 +88,7 @@ def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_le
     CAPSET_SIZE = 3**n
     if np.count_nonzero(lines_count == np.max(lines_count)) == (CAPSET_SIZE - skip_vectors_len):
         # if all the points left have the same line count
-        condition = lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1
+        condition = lambda line_counts, i, amount,not_allowed : 0 <= line_counts[i] <= amount - 1
         # this condition WILL NOT be satified by any of the points in the capset ^  
         potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition=condition)
         potential_values = vecs_to_nums(potential_vectors,n)
@@ -207,7 +207,7 @@ def run(params : list):
 
 def main():
     params = []
-    n = 4
+    n = 3
     capset_size = 3
     sample_size = 1
 
