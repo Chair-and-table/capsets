@@ -5,7 +5,12 @@ from multiprocessing import Pool
 from tools import *
 from itertools import chain
 import os
+from make_base_capset import give_base_capset
 from build_cap_set import ground_up
+
+
+
+
 
 def felipe_algorythm(n : int,skip_vectors: np.ndarray[np.ndarray[int]], prev_line_count: np.ndarray[int], point_removed_enum : int, mask) -> np.ndarray[int]:
     """
@@ -24,8 +29,7 @@ def felipe_algorythm(n : int,skip_vectors: np.ndarray[np.ndarray[int]], prev_lin
 
 def add_lines_count(n, prev_lines_count, skip_vectors, skip_vectors_len, points_added_enum,points_added_vector,mask):
 
-    # i pity anyone who has to try understand this code...
-
+    # add line counts for points_added_enum
     upper_bound_line_count = (3 ** n - 1) // 2 - skip_vectors_len  
     for point_enum, point_vector in zip(points_added_enum,points_added_vector):
         upper_bound_line_count += 1
@@ -43,7 +47,7 @@ def add_lines_count(n, prev_lines_count, skip_vectors, skip_vectors_len, points_
     return skip_vectors_len
 
 
-def find_next_togetridof_base(n,lines_count : np.ndarray,amount : int,skip_vectors_len : int,randomchance =0):
+def find_next_togetridof(n,lines_count : np.ndarray,amount : int,skip_vectors_len : int,randomchance =0):
     """
     Given:
 
@@ -61,30 +65,52 @@ def find_next_togetridof_base(n,lines_count : np.ndarray,amount : int,skip_vecto
     CAPSET_SIZE = 3**n
     if np.count_nonzero(lines_count == np.max(lines_count)) == (CAPSET_SIZE - skip_vectors_len):
         # if all the points left have the same line count
-        condition = lambda line_counts, i, amount : 0 <= line_counts[i] <= amount - 1
-        # this condition WILL NOT be satified by any of the points in the capset ^  
-        potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition=condition)
+        condition = lambda line_counts, i, amount,not_allowed : ((0 <= line_counts[i] <= amount - 1) or i in not_allowed)
+        # this condition WILL NOT be satified by any of the points in the capset ^
+        potential_vectors =  ground_up(n, line_counts=lines_count, max_size=amount, condition=condition,not_allowed=keep_points)
         potential_values = vecs_to_nums(potential_vectors,n)
 
+
+
         if len(potential_vectors) == amount:
+            #for value in potential_values:
+            #   keep_points.add(value)
             return (potential_values,potential_vectors)
         elif 0 < len(potential_vectors):
-            return ([potential_vectors[0]], [num_to_vec(potential_vectors[0],n)])
+            #keep_points.add(potential_values[0])
+            return ([potential_values[0]], [potential_vectors[0]])
     
     if randint(1,100) <= randomchance:
         potential_vector_enum =  randint(0,len(lines_count) - 1)
 
-        if lines_count[potential_vector_enum] > 0:
+        if lines_count[potential_vector_enum] > 0 and potential_vector_enum not in keep_points:
+            #keep_points.add(potential_vector_enum)
             return ([potential_vector_enum], [num_to_vec(potential_vector_enum,n)])
         
     # return index of maximum value
+    
     vector_enum = np.argmax(lines_count)
+    i = 0
+    vector_enums = np.empty(len(keep_points),dtype=int)
+    vector_enums_linecounts = np.empty(len(keep_points),dtype=int)
+    while vector_enum in keep_points and i < len(keep_points):
+        vector_enums[i] = vector_enum
+        vector_enums_linecounts[i] = lines_count[vector_enum]
+        lines_count[vector_enum] = -1
+        vector_enum = np.argmax(lines_count)
+        i += 1
+    if i > 0:
+        lines_count[vector_enums[:i]] = vector_enums_linecounts[:i]
+    if vector_enum in keep_points and i == len(keep_points):
+        vector_enum = np.argmax(lines_count)
+        
+    #keep_points.add(vector_enum)
     return ([vector_enum], [num_to_vec(vector_enum,n)])
 
 
 
 
-def get_rid_of_capset_method_base(n : int,capset_size: int,randomchance : int =0) -> np.ndarray[np.ndarray[int]]:
+def get_rid_of_capset_method(n : int,capset_size: int,randomchance : int =0) -> np.ndarray[np.ndarray[int]]:
     """
     Apply the method of getting rid of capsets from the set. In practice this is just removing {capset_size-1}-hyperplanes
     from the set. If randomchance is greater than 0, some points will be removed randomly.
@@ -112,7 +138,7 @@ def get_rid_of_capset_method_base(n : int,capset_size: int,randomchance : int =0
     mask = np.full(set_size, fill_value=False, dtype=bool)
 
     # lines_count[i] is greater than or equal to 0 if vector i is in our subset, and less than 0 if it's been removed
-    vectors_to_get_rid_of = ground_up(n,line_counts=lines_count, max_size=capset_size)
+    vectors_to_get_rid_of = ground_up(n,line_counts=lines_count, max_size=capset_size,condition=lambda lines_counts, i , amount, not_allowed : i in not_allowed, not_allowed=keep_points)
     vectors_enum_to_get_rid_of = vecs_to_nums(vectors_to_get_rid_of,n)
     saved_capset_vectors = []
     saved_capset_enum = []
@@ -140,7 +166,10 @@ def get_rid_of_capset_method_base(n : int,capset_size: int,randomchance : int =0
                 point_removed_enum=vector_enum,
                 mask=mask
                 )
-            
+
+                
+
+
         if len(vectors_to_get_rid_of) > 1:
             if len(saved_capset_enum) != 0:
                 skip_vectors_amount = add_lines_count(
@@ -151,11 +180,11 @@ def get_rid_of_capset_method_base(n : int,capset_size: int,randomchance : int =0
                     points_added_enum=saved_capset_enum,
                     points_added_vector=saved_capset_vectors,
                     mask=mask
-                )
+                )   
             saved_capset_vectors = vectors_to_get_rid_of
             saved_capset_enum = vectors_enum_to_get_rid_of
         # finds the next best vector(s) to get rid of
-        vectors_enum_to_get_rid_of,vectors_to_get_rid_of = find_next_togetridof_base(
+        vectors_enum_to_get_rid_of,vectors_to_get_rid_of = find_next_togetridof(
             n,
             lines_count,
             capset_size, 
@@ -173,10 +202,10 @@ def get_rid_of_capset_method_base(n : int,capset_size: int,randomchance : int =0
 
 def run_a_bunch(n):
 
-    capset1max = get_rid_of_capset_method_base(4,3)
+    capset1max = get_rid_of_capset_method(4,3)
     capset2max = ground_up(n,start_values=capset1max)
     for _ in range(100):
-        capset1 = get_rid_of_capset_method_base(4,3)
+        capset1 = get_rid_of_capset_method(4,3)
         capset2 = ground_up(n,start_values=capset1)
         if len(capset2max) < len(capset2):
             capset2max = capset2
@@ -197,7 +226,10 @@ def run(params : list):
     capsets = []
     for i in range(sample_number):
         with open(file, "a") as f:
-            capset = get_rid_of_capset_method_base(n,capset_size=capset_size,randomchance=random_chance)
+            capset = get_rid_of_capset_method(n,capset_size=capset_size,randomchance=random_chance)
+            for i in smallestcapsetthatkeepsalldimensionsenum:
+                if i not in capset:
+                    raise Exception()
             f.write(f"Begining capset: {capset}\n")
             f.write(f"Capset length:  {len(capset)}\n")
             capset2 = ground_up(n, start_values=capset)
@@ -209,22 +241,29 @@ def run(params : list):
         f.write("	".join(capsets))
         f.write("\n")
 
+N = 8
+smallestcapsetthatkeepsalldimensions = give_base_capset(N)
+smallestcapsetthatkeepsalldimensionsenum = vecs_to_nums(smallestcapsetthatkeepsalldimensions,N)
+
+keep_points = set(smallestcapsetthatkeepsalldimensionsenum)
+
 
 def main():
     params = []
-    n = 8
-    capset_size = 10
-    sample_size = 15
+    n = N
+    capset_size = 3
+    sample_size = 1
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
 
+    #run(params[0])
 
     with Pool() as pool:
-        list(pool.imap(run, params))
+       list(pool.imap(run, params))
 
     with open("logs.txt", "w") as f:
-        f.write("")
+       f.write("")
         
     with open("logs.txt", "a") as f:
         for i in range(11):

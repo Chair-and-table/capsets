@@ -1,5 +1,5 @@
 import numpy as np
-
+from tools import num_to_vec
 def is_cap_set(vectors: np.ndarray) -> bool:
   """Returns whether `vectors` form a valid cap set.
 
@@ -24,6 +24,7 @@ def is_cap_set(vectors: np.ndarray) -> bool:
   is_blocked = np.full(shape=3 ** n, fill_value=False, dtype=bool)
   for i, (new_vector, new_index) in enumerate(zip(vectors, raveled)):
     if is_blocked[new_index]:
+      print(num_to_vec(new_index,4))
       return False  # Inserting the i-th element violated the cap set property.
     if i >= 1:
       # Update which elements are blocked after the insertion of `new_vector`.
