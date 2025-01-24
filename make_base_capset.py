@@ -61,7 +61,7 @@ def give_base_capset(N):
 
 #a = make_base_capset(4)
 if __name__ == "__main__":
-    N=4
+    N=8
     final_capset = give_base_capset(N)
-    print(final_capset.__repr__())
+    print(final_capset)
     points = (is_cap_set(final_capset))
