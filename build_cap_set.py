@@ -209,18 +209,17 @@ def run(params : list):
     capsets = []
     for i in range(sample_number):
         with open(file, "a") as f:
-            capset = get_rid_of_capset_method(n,capset_size=capset_size,randomchance=random_chance)
+            capset1 = get_rid_of_capset_method(n,capset_size=capset_size,randomchance=random_chance)
             for point in smallestcapsetthatkeepsalldimensionsenum:
-                if point not in capset:
+                if point not in capset1:
                     raise Exception()
-
-            f.write(f"Begining capset: {capset}\n")
-            f.write(f"Capset length:  {len(capset)}\n")
-            capset2 = ground_up(n, start_values=capset)
+            f.write(f"Begining capset: {capset1}\n")
+            f.write(f"Capset length:  {len(capset1)}\n")
+            capset2 = ground_up(n, start_values=capset1)
             f.write(str(capset2))
             f.write("\n")
             f.write(f"Len of capset  {len(capset2)}\n")
-            capsets.append(str(len(capset2)))
+            capsets.append(str(len(capset1)))
     with open(file, "a") as f:
         f.write("	".join(capsets))
         f.write("\n")
@@ -235,8 +234,8 @@ keep_points = set(smallestcapsetthatkeepsalldimensionsenum)
 def main():
     params = []
     n = N
-    capset_size = 3
-    sample_size = 1
+    capset_size = 4
+    sample_size = 8
 
     for i in range(11):
         params.append([n,sample_size, f"logs{i}.txt", i*10,   capset_size])
